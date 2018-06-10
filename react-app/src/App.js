@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
-import logo from './logo.svg';
 import './App.css';
 import { Socket, Presence } from 'phoenix';
+import MyTextInput from './components/MyTextInput';
+import Messages from './components/Messages';
 
 let socket = new Socket("ws://0.0.0.0:4000/socket", {params: {userToken: "123"}});
 socket.connect();
@@ -17,7 +18,11 @@ channel.push("new_msg", {body: "hello"}, 10000)
   .receive("error", (reasons) => console.log("create failed", reasons) )
   .receive("timeout", () => console.log("Networking issue...") )
 
-channel.on("new_msg", msg => console.log("Got message", msg) )
+let messages = []
+channel.on("new_msg", msg => {
+  console.log("Got message", msg)
+  messages = [...messages, msg]
+})
 
 channel.on("something", msg => console.log("Got something", msg) )
 
@@ -52,16 +57,30 @@ channel.on("presence_state", state => {
  })
 
 class App extends Component {
+  constructor () {
+    super()
+    this.state = {
+      messages: []
+    }
+
+   this.onMessageReceived = this.onMessageReceived.bind(this)
+   channel.on("new_msg", this.onMessageReceived)
+  }
+
+  onMessageReceived (msg) {
+    const newState = [...this.state.messages, msg]
+    this.setState(newState)
+  }
+
   render() {
     return (
       <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
-        </header>
-        <p className="App-intro">
-          To get started, edit <code>src/App.js</code> and save to reload.
-        </p>
+        <MyTextInput
+          onEnter={ message =>
+            channel.push("new_msg", {body: message}, 10000)
+          }
+        />
+        <Messages messages={messages}/>
       </div>
     );
   }
